@@ -80,11 +80,12 @@ func clientSender() {
 	defer tcpClient.Close()
 
 	for {
-		var buffer string
 		// read data from stdio
-		fmt.Scanln(&buffer)
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan() // use `for scanner.Scan()` to keep reading
+		buffer := scanner.Text()
 		// send data to target:port
-		fmt.Fprintln(tcpClient, buffer)
+		fmt.Fprint(tcpClient, buffer)
 
 		// receive from target
 		var receivedBuf bytes.Buffer
@@ -164,7 +165,7 @@ func handleClient(c net.Conn) {
 	// check for execute command
 	if inputCli.execute != "" {
 		output := runCommand(inputCli.execute)
-		fmt.Fprintln(c, output)
+		fmt.Fprint(c, output)
 	}
 
 	// initial a command shell
@@ -196,7 +197,7 @@ func handleClient(c net.Conn) {
 
 			// run the command and send to output back
 			output := runCommand(buffer.String())
-			fmt.Fprintln(c, output)
+			fmt.Fprint(c, output)
 		}
 	}
 }
@@ -205,12 +206,16 @@ func handleClient(c net.Conn) {
 func runCommand(execute string) string {
 	log.Println("run command:", execute)
 	cmd := exec.Command("cmd.exe", "/C", execute)
-	output, err := cmd.Output()
-	outStr := string(output)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
 	if err != nil {
-		outStr = fmt.Sprint("Failed to execute command.", err)
+
+		return fmt.Sprint(err, ": ", stderr.String())
 	}
-	return outStr
+	return out.String()
 }
 
 func main() {
